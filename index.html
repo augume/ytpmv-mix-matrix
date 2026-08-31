@@ -339,7 +339,7 @@
       <div class="panel-card" style="flex: 1;">
         <h2>プロット一覧 (<span id="plot-count">0</span>)</h2>
         <div class="plot-list-wrapper" id="plot-list">
-          <div class="empty-state">プロットデータがありません</div>
+          <div class="empty-state">プロットデータを読み込み中...</div>
         </div>
       </div>
     </div>
@@ -372,7 +372,7 @@
 
       // Setup High-DPI Canvas Scaling (Retina / 4K Sharpness)
       function setupHiDPI() {
-        const dpr = Math.max(window.devicePixelRatio || 1, 2); // Force at least 2x scale for crisp rendering
+        const dpr = Math.max(window.devicePixelRatio || 1, 2);
         canvas.width = 600 * dpr;
         canvas.height = 600 * dpr;
         canvas.style.width = '600px';
@@ -380,17 +380,41 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
-      // Load plots from LocalStorage
-      function loadPlots() {
+      // Load plots from Shared Repository Master File (plots.json) and LocalStorage
+      async function initData() {
+        let sharedPlots = [];
+        try {
+          const response = await fetch('./plots.json?t=' + Date.now());
+          if (response.ok) {
+            sharedPlots = await response.json();
+          }
+        } catch (e) {
+          console.warn('Shared plots file could not be fetched:', e);
+        }
+
+        let localPlots = [];
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw) {
-            plots = JSON.parse(raw);
+            localPlots = JSON.parse(raw);
           }
         } catch (e) {
-          console.error('Failed to load plots from localStorage:', e);
-          plots = [];
+          console.error('Failed to load local plots:', e);
         }
+
+        // Merge shared master plots and local additions (avoiding duplicates by name)
+        const map = new Map();
+        if (Array.isArray(sharedPlots)) {
+          sharedPlots.forEach(p => map.set(p.name.toLowerCase(), p));
+        }
+        if (Array.isArray(localPlots)) {
+          localPlots.forEach(p => map.set(p.name.toLowerCase(), p));
+        }
+
+        plots = Array.from(map.values());
+        savePlots();
+        renderList();
+        draw();
       }
 
       // Save plots to LocalStorage
@@ -696,7 +720,7 @@
         }
       });
 
-      // Canvas Click direct coordinate picking (HiDPI scaling aware)
+      // Canvas Click direct coordinate picking
       canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = 600 / rect.width;
@@ -759,10 +783,8 @@
 
       // Initialize
       setupHiDPI();
-      loadPlots();
       updateSliderBadges();
-      renderList();
-      draw();
+      initData();
 
     })();
   </script>
