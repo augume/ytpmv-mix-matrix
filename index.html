@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YTPMV Mix Style Matrix</title>
-  <meta name="description" content="YTPMVのMixスタイルを2次元座標（空間演出・素材加工）にプロット・管理するWebアプリケーション">
+  <meta name="description" content="YTPMVのMixスタイルを2次元座標（空間演出・音作り）にプロット・管理するWebアプリケーション">
   <style>
     :root {
       --bg-color: #0b0e14;
@@ -17,11 +17,9 @@
       --accent-blue-hover: #2563eb;
       --accent-cyan: #06b6d4;
       --accent-red: #ef4444;
-      --accent-red-hover: #dc2626;
       --grid-line: #1e2638;
       --axis-line: #3b4866;
       --axis-text: #94a3b8;
-      --quad-text: rgba(255, 255, 255, 0.06);
     }
 
     * {
@@ -255,7 +253,7 @@
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 4px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -286,22 +284,6 @@
       font-family: monospace;
     }
 
-    .btn-delete {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 3px;
-      font-size: 0.8rem;
-      transition: color 0.15s ease, background-color 0.15s ease;
-    }
-
-    .btn-delete:hover {
-      color: var(--accent-red);
-      background-color: rgba(239, 68, 68, 0.1);
-    }
-
     footer {
       border-top: 1px solid var(--card-border);
       padding: 16px 24px;
@@ -316,7 +298,7 @@
 
   <header>
     <h1>YTPMV Mix Style Matrix</h1>
-    <div class="sub-info">空間演出（ドライ↔ウェット） × 素材加工（素材の味↔シンセ化）</div>
+    <div class="sub-info">空間演出（ドライ↔ウェット） × 音作り（素材の味↔シンセ化）</div>
   </header>
 
   <div class="main-container">
@@ -345,7 +327,7 @@
 
         <div class="form-group">
           <label for="y-slider">
-            Y軸: 素材加工 (素材の味 ↔ シンセ化)
+            Y軸: 音作り (素材の味 ↔ シンセ化)
             <span class="val-badge" id="y-val">0</span>
           </label>
           <input type="range" id="y-slider" min="-100" max="100" value="0">
@@ -411,10 +393,8 @@
       }
 
       // Coordinate Mapping Functions
-      // Canvas: (0, 0) top-left, (600, 600) bottom-right
-      // Matrix: (-100, -100) bottom-left, (+100, +100) top-right, (0, 0) center (300, 300)
       function matrixToCanvas(x, y) {
-        const cx = 300 + (x / 100) * 260; // 40px margin around matrix
+        const cx = 300 + (x / 100) * 260; // 40px margin
         const cy = 300 - (y / 100) * 260;
         return { cx, cy };
       }
@@ -450,10 +430,8 @@
         ctx.fillText('ウェット × 素材の味', 430, 450);
         ctx.restore();
 
-        // Grid Lines
+        // Sub Grid (every 25 units)
         ctx.lineWidth = 1;
-
-        // Sub Grid (every 25 units = 65px)
         ctx.strokeStyle = '#1a2232';
         for (let v = -75; v <= 75; v += 25) {
           if (v === 0) continue;
@@ -471,7 +449,7 @@
           ctx.stroke();
         }
 
-        // Main Grid (every 50 units = 130px)
+        // Main Grid (every 50 units)
         ctx.strokeStyle = '#253046';
         for (let v = -50; v <= 50; v += 50) {
           if (v === 0) continue;
@@ -530,7 +508,7 @@
         ctx.fillText('素材の味 (-100) ↓', 300, 580);
         ctx.textAlign = 'left';
         ctx.fillStyle = '#cbd5e1';
-        ctx.fillText('【素材加工】', 310, 55);
+        ctx.fillText('【音作り】', 310, 55);
 
         ctx.restore();
 
@@ -541,7 +519,6 @@
 
           ctx.save();
 
-          // Outer Glow if hovered
           if (isHovered) {
             ctx.beginPath();
             ctx.arc(cx, cy, 12, 0, Math.PI * 2);
@@ -549,7 +526,6 @@
             ctx.fill();
           }
 
-          // Dot
           ctx.beginPath();
           ctx.arc(cx, cy, isHovered ? 7 : 5, 0, Math.PI * 2);
           ctx.fillStyle = isHovered ? '#60a5fa' : '#3b82f6';
@@ -558,7 +534,6 @@
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
-          // Label Text
           ctx.font = isHovered ? '600 12px sans-serif' : '500 11px sans-serif';
           ctx.fillStyle = isHovered ? '#ffffff' : '#e2e8f0';
           ctx.textAlign = 'center';
@@ -587,7 +562,7 @@
         ctx.restore();
       }
 
-      // Update UI Controls & List
+      // Update UI Controls & List (GUI deletion removed for public protection)
       function renderList() {
         plotCountEl.textContent = plots.length;
 
@@ -607,7 +582,6 @@
               <div class="plot-name">${escapeHtml(plot.name)}</div>
               <div class="plot-coords">X: ${plot.x} / Y: ${plot.y}</div>
             </div>
-            <button class="btn-delete" title="削除">削除</button>
           `;
 
           // Hover highlight
@@ -620,21 +594,13 @@
             draw();
           });
 
-          // Click to load into sliders
-          item.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-delete')) return;
+          // Click to load into sliders for updating
+          item.addEventListener('click', () => {
             authorInput.value = plot.name;
             xSlider.value = plot.x;
             ySlider.value = plot.y;
             updateSliderBadges();
             draw();
-          });
-
-          // Delete action
-          const deleteBtn = item.querySelector('.btn-delete');
-          deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deletePlot(plot.id);
           });
 
           plotListEl.appendChild(item);
@@ -670,13 +636,12 @@
         const x = parseInt(xSlider.value, 10);
         const y = parseInt(ySlider.value, 10);
 
-        // Same-name check (case-insensitive)
         const existingIndex = plots.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
 
         if (existingIndex !== -1) {
           plots[existingIndex].x = x;
           plots[existingIndex].y = y;
-          plots[existingIndex].name = name; // Update casing if changed
+          plots[existingIndex].name = name;
         } else {
           plots.push({
             id: Date.now().toString(),
@@ -686,14 +651,6 @@
           });
         }
 
-        savePlots();
-        renderList();
-        draw();
-      }
-
-      // Delete Plot
-      function deletePlot(id) {
-        plots = plots.filter(p => p.id !== id);
         savePlots();
         renderList();
         draw();
@@ -732,12 +689,9 @@
         draw();
       });
 
-      // Admin / Console Backup APIs (hidden from main GUI for safety)
+      // Admin / Console APIs (Console-only deletion & backup/restore)
       window.exportData = function () {
-        const jsonStr = JSON.stringify(plots, null, 2);
-        console.log('--- YTPMV Matrix Backup JSON ---');
-        console.log(jsonStr);
-        return jsonStr;
+        return JSON.stringify(plots, null, 2);
       };
 
       window.importData = function (jsonInput) {
@@ -748,16 +702,21 @@
             savePlots();
             renderList();
             draw();
-            console.log(`[成功] ${plots.length} 件のプロットデータを復元しました。`);
             return true;
-          } else {
-            console.error('[エラー] 配列形式のJSONデータを指定してください。');
-            return false;
           }
+          return false;
         } catch (e) {
-          console.error('[エラー] JSONの解析に失敗しました:', e);
           return false;
         }
+      };
+
+      window.deletePlotByName = function (name) {
+        if (!name) return false;
+        plots = plots.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase());
+        savePlots();
+        renderList();
+        draw();
+        return true;
       };
 
       window.clearAllData = function () {
@@ -766,16 +725,8 @@
           savePlots();
           renderList();
           draw();
-          console.log('[完了] 全プロットデータを消去しました。');
         }
       };
-
-      // Output Admin Console Info
-      console.log('%cYTPMV Mix Style Matrix', 'font-size: 14px; font-weight: bold; color: #3b82f6;');
-      console.log('管理者用バックアップ・復元コマンド:');
-      console.log('  window.exportData()       : 現在のデータをJSON文字列で取得');
-      console.log('  window.importData(json)   : JSON文字列またはオブジェクトでデータを復元');
-      console.log('  window.clearAllData()     : 全プロットデータを消去');
 
       // Initialize
       loadPlots();
