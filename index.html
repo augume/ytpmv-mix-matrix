@@ -7,19 +7,18 @@
   <meta name="description" content="YTPMVのMixスタイルを2次元座標（空間演出・音作り）にプロット・管理するWebアプリケーション">
   <style>
     :root {
-      --bg-color: #0b0e14;
-      --panel-bg: #141820;
-      --card-bg: #1c222e;
-      --card-border: #2a3245;
-      --text-main: #e2e8f0;
-      --text-muted: #8a99ad;
-      --accent-blue: #3b82f6;
-      --accent-blue-hover: #2563eb;
-      --accent-cyan: #06b6d4;
-      --accent-red: #ef4444;
-      --grid-line: #1e2638;
-      --axis-line: #3b4866;
-      --axis-text: #94a3b8;
+      --bg-color: #09090b;
+      --panel-bg: #121215;
+      --card-bg: #18181b;
+      --card-border: #27272a;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --accent-purple: #8b5cf6;
+      --accent-purple-hover: #7c3aed;
+      --accent-gold: #fde047;
+      --grid-line: #27272a;
+      --axis-line: #52525b;
+      --axis-text: #a1a1aa;
     }
 
     * {
@@ -90,7 +89,7 @@
       border: 1px solid var(--card-border);
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
     }
 
     canvas {
@@ -149,7 +148,7 @@
 
     .form-group label span.val-badge {
       font-weight: 600;
-      color: var(--accent-cyan);
+      color: var(--accent-gold);
       font-family: monospace;
       font-size: 0.9rem;
     }
@@ -166,7 +165,7 @@
     }
 
     input[type="text"]:focus {
-      border-color: var(--accent-blue);
+      border-color: var(--accent-purple);
     }
 
     input[type="range"] {
@@ -185,7 +184,7 @@
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      background: var(--accent-blue);
+      background: var(--accent-purple);
       cursor: pointer;
       border: 2px solid var(--panel-bg);
       transition: transform 0.1s ease, background-color 0.1s ease;
@@ -193,11 +192,11 @@
 
     input[type="range"]::-webkit-slider-thumb:hover {
       transform: scale(1.15);
-      background: var(--accent-cyan);
+      background: var(--accent-gold);
     }
 
     .btn {
-      background-color: var(--accent-blue);
+      background-color: var(--accent-purple);
       color: #ffffff;
       border: none;
       border-radius: 4px;
@@ -213,7 +212,7 @@
     }
 
     .btn:hover {
-      background-color: var(--accent-blue-hover);
+      background-color: var(--accent-purple-hover);
     }
 
     .btn:active {
@@ -263,8 +262,8 @@
     }
 
     .plot-item:hover {
-      border-color: var(--accent-blue);
-      background-color: #222a39;
+      border-color: var(--accent-purple);
+      background-color: #201e29;
     }
 
     .plot-info {
@@ -299,7 +298,7 @@
 
   <header>
     <h1>YTPMV Mix Style Matrix</h1>
-    <div class="sub-info">空間演出（ドライ↔ウェット） × 音作り（素材の味↔シンセ化）</div>
+    <div class="sub-info">空間演出（ドライ↔ウェット） × 音作り（素材の味重視↔音作り重視）</div>
   </header>
 
   <div class="main-container">
@@ -328,7 +327,7 @@
 
         <div class="form-group">
           <label for="y-slider">
-            Y軸: 音作り (素材の味 ↔ シンセ化)
+            Y軸: 音作り (素材の味重視 ↔ 音作り重視)
             <span class="val-badge" id="y-val">0</span>
           </label>
           <input type="range" id="y-slider" min="-100" max="100" value="0">
@@ -415,25 +414,25 @@
 
         ctx.clearRect(0, 0, width, height);
 
-        // Background
-        ctx.fillStyle = '#141820';
+        // Monochrome Background
+        ctx.fillStyle = '#121215';
         ctx.fillRect(0, 0, width, height);
 
         // Quadrant Background Text
         ctx.save();
-        ctx.font = '700 24px sans-serif';
+        ctx.font = '700 22px sans-serif';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('ドライ × シンセ化', 170, 150);
-        ctx.fillText('ウェット × シンセ化', 430, 150);
-        ctx.fillText('ドライ × 素材の味', 170, 450);
-        ctx.fillText('ウェット × 素材の味', 430, 450);
+        ctx.fillText('ドライ × 音作り重視', 170, 150);
+        ctx.fillText('ウェット × 音作り重視', 430, 150);
+        ctx.fillText('ドライ × 素材の味重視', 170, 450);
+        ctx.fillText('ウェット × 素材の味重視', 430, 450);
         ctx.restore();
 
         // Sub Grid (every 25 units)
         ctx.lineWidth = 1;
-        ctx.strokeStyle = '#1a2232';
+        ctx.strokeStyle = '#1d1d21';
         for (let v = -75; v <= 75; v += 25) {
           if (v === 0) continue;
           const { cx } = matrixToCanvas(v, 0);
@@ -451,7 +450,7 @@
         }
 
         // Main Grid (every 50 units)
-        ctx.strokeStyle = '#253046';
+        ctx.strokeStyle = '#27272a';
         for (let v = -50; v <= 50; v += 50) {
           if (v === 0) continue;
           const { cx } = matrixToCanvas(v, 0);
@@ -469,11 +468,11 @@
         }
 
         // Outer Border
-        ctx.strokeStyle = '#2a344d';
+        ctx.strokeStyle = '#3f3f46';
         ctx.strokeRect(40, 40, 520, 520);
 
         // Center Crosshair Axes
-        ctx.strokeStyle = '#4b5b80';
+        ctx.strokeStyle = '#52525b';
         ctx.lineWidth = 2;
 
         // X Axis
@@ -491,7 +490,7 @@
         // Axis Titles & Endpoint Labels
         ctx.save();
         ctx.font = '600 12px sans-serif';
-        ctx.fillStyle = '#94a3b8';
+        ctx.fillStyle = '#a1a1aa';
 
         // X Axis Labels
         ctx.textAlign = 'left';
@@ -499,16 +498,16 @@
         ctx.textAlign = 'right';
         ctx.fillText('ウェット (+100) →', 555, 318);
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = '#e4e4e7';
         ctx.fillText('【空間演出】', 510, 290);
 
         // Y Axis Labels
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText('シンセ化 (+100) ↑', 300, 30);
-        ctx.fillText('素材の味 (-100) ↓', 300, 580);
+        ctx.fillStyle = '#a1a1aa';
+        ctx.fillText('音作り重視 (+100) ↑', 300, 30);
+        ctx.fillText('素材の味重視 (-100) ↓', 300, 580);
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = '#e4e4e7';
         ctx.fillText('【音作り】', 310, 55);
 
         ctx.restore();
@@ -520,30 +519,31 @@
 
           ctx.save();
 
+          // 20% Purple Accent for Hover / Highlights
           if (isHovered) {
             ctx.beginPath();
             ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.35)';
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.35)';
             ctx.fill();
           }
 
           ctx.beginPath();
           ctx.arc(cx, cy, isHovered ? 7 : 5, 0, Math.PI * 2);
-          ctx.fillStyle = isHovered ? '#60a5fa' : '#3b82f6';
+          ctx.fillStyle = isHovered ? '#a855f7' : '#8b5cf6';
           ctx.fill();
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
           ctx.font = isHovered ? '600 12px sans-serif' : '500 11px sans-serif';
-          ctx.fillStyle = isHovered ? '#ffffff' : '#e2e8f0';
+          ctx.fillStyle = isHovered ? '#ffffff' : '#f4f4f5';
           ctx.textAlign = 'center';
           ctx.fillText(`${plot.name} (${plot.x}, ${plot.y})`, cx, cy - 10);
 
           ctx.restore();
         });
 
-        // Render Current Slider Selection Preview Point
+        // 5% Pale Gold Accent for Current Selection Preview Ring
         const currentX = parseInt(xSlider.value, 10);
         const currentY = parseInt(ySlider.value, 10);
         const { cx: prevCx, cy: prevCy } = matrixToCanvas(currentX, currentY);
@@ -551,14 +551,14 @@
         ctx.save();
         ctx.beginPath();
         ctx.arc(prevCx, prevCy, 8, 0, Math.PI * 2);
-        ctx.strokeStyle = '#06b6d4';
+        ctx.strokeStyle = '#fde047'; // Pale Gold
         ctx.lineWidth = 2;
         ctx.setLineDash([3, 3]);
         ctx.stroke();
 
         ctx.beginPath();
         ctx.arc(prevCx, prevCy, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#06b6d4';
+        ctx.fillStyle = '#fde047';
         ctx.fill();
         ctx.restore();
       }
@@ -596,7 +596,7 @@
             draw();
           });
 
-          // Click handling: Normal click = edit, Shift+Click = delete (Hidden Admin Shortcut)
+          // Click handling: Normal click = edit, Shift+Click = delete
           item.addEventListener('click', (e) => {
             if (e.shiftKey) {
               if (confirm(`「${plot.name}」のプロットを削除しますか？`)) {
