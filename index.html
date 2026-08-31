@@ -304,7 +304,7 @@
   <div class="main-container">
     <div class="canvas-section">
       <div class="canvas-wrapper">
-        <canvas id="matrixCanvas" width="600" height="600"></canvas>
+        <canvas id="matrixCanvas"></canvas>
       </div>
       <div class="canvas-hint">Canvas上をクリックすると座標をスライダーに直接反映できます</div>
     </div>
@@ -370,6 +370,16 @@
       const plotListEl = document.getElementById('plot-list');
       const plotCountEl = document.getElementById('plot-count');
 
+      // Setup High-DPI Canvas Scaling (Retina / 4K Sharpness)
+      function setupHiDPI() {
+        const dpr = Math.max(window.devicePixelRatio || 1, 2); // Force at least 2x scale for crisp rendering
+        canvas.width = 600 * dpr;
+        canvas.height = 600 * dpr;
+        canvas.style.width = '600px';
+        canvas.style.height = '600px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
       // Load plots from LocalStorage
       function loadPlots() {
         try {
@@ -392,7 +402,7 @@
         }
       }
 
-      // Coordinate Mapping Functions
+      // Coordinate Mapping Functions (Logical 600x600 space)
       function matrixToCanvas(x, y) {
         const cx = 300 + (x / 100) * 260; // 40px margin
         const cy = 300 - (y / 100) * 260;
@@ -409,18 +419,15 @@
 
       // Draw Matrix Canvas
       function draw() {
-        const width = canvas.width;
-        const height = canvas.height;
-
-        ctx.clearRect(0, 0, width, height);
+        ctx.clearRect(0, 0, 600, 600);
 
         // Monochrome Background
         ctx.fillStyle = '#121215';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, 600, 600);
 
         // Quadrant Background Text
         ctx.save();
-        ctx.font = '700 22px sans-serif';
+        ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -489,7 +496,7 @@
 
         // Axis Titles & Endpoint Labels
         ctx.save();
-        ctx.font = '600 12px sans-serif';
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.fillStyle = '#a1a1aa';
 
         // X Axis Labels
@@ -519,7 +526,6 @@
 
           ctx.save();
 
-          // 20% Purple Accent for Hover / Highlights
           if (isHovered) {
             ctx.beginPath();
             ctx.arc(cx, cy, 12, 0, Math.PI * 2);
@@ -535,7 +541,7 @@
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
-          ctx.font = isHovered ? '600 12px sans-serif' : '500 11px sans-serif';
+          ctx.font = isHovered ? '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
           ctx.fillStyle = isHovered ? '#ffffff' : '#f4f4f5';
           ctx.textAlign = 'center';
           ctx.fillText(`${plot.name} (${plot.x}, ${plot.y})`, cx, cy - 10);
@@ -543,7 +549,7 @@
           ctx.restore();
         });
 
-        // 5% Pale Gold Accent for Current Selection Preview Ring
+        // Current Selection Preview Point (5% Pale Gold Accent)
         const currentX = parseInt(xSlider.value, 10);
         const currentY = parseInt(ySlider.value, 10);
         const { cx: prevCx, cy: prevCy } = matrixToCanvas(currentX, currentY);
@@ -690,17 +696,25 @@
         }
       });
 
-      // Canvas Click direct coordinate picking
+      // Canvas Click direct coordinate picking (HiDPI scaling aware)
       canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
+        const scaleX = 600 / rect.width;
+        const scaleY = 600 / rect.height;
+
+        const cx = (e.clientX - rect.left) * scaleX;
+        const cy = (e.clientY - rect.top) * scaleY;
 
         const { x, y } = canvasToMatrix(cx, cy);
 
         xSlider.value = x;
         ySlider.value = y;
         updateSliderBadges();
+        draw();
+      });
+
+      window.addEventListener('resize', () => {
+        setupHiDPI();
         draw();
       });
 
@@ -744,6 +758,7 @@
       };
 
       // Initialize
+      setupHiDPI();
       loadPlots();
       updateSliderBadges();
       renderList();
