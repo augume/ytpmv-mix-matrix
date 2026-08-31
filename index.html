@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YTPMV Mix Style Matrix</title>
+  <meta name="description" content="YTPMVのMixスタイルを2次元座標（空間演出・素材加工）にプロット・管理するWebアプリケーション">
+  <style>
+    :root {
+      --bg-color: #0b0e14;
+      --panel-bg: #141820;
+      --card-bg: #1c222e;
+      --card-border: #2a3245;
+      --text-main: #e2e8f0;
+      --text-muted: #8a99ad;
+      --accent-blue: #3b82f6;
+      --accent-blue-hover: #2563eb;
+      --accent-cyan: #06b6d4;
+      --accent-red: #ef4444;
+      --accent-red-hover: #dc2626;
+      --grid-line: #1e2638;
+      --axis-line: #3b4866;
+      --axis-text: #94a3b8;
+      --quad-text: rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--text-main);
+    }
+
+    header .sub-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      .main-container {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    .canvas-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      background-color: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    canvas {
+      display: block;
+      width: 600px;
+      height: 600px;
+      cursor: crosshair;
+    }
+
+    .canvas-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .control-panel {
+      flex: 1;
+      min-width: 320px;
+      max-width: 500px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-card {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group label span.val-badge {
+      font-weight: 600;
+      color: var(--accent-cyan);
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    input[type="text"] {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-blue);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--card-bg);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      border: 2px solid var(--panel-bg);
+      transition: transform 0.1s ease, background-color 0.1s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: var(--accent-cyan);
+    }
+
+    .btn {
+      background-color: var(--accent-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.05s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-blue-hover);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .plot-list-wrapper {
+      flex: 1;
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+    }
+
+    .plot-list-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+    .plot-list-wrapper::-webkit-scrollbar-track {
+      background: var(--card-bg);
+      border-radius: 3px;
+    }
+    .plot-list-wrapper::-webkit-scrollbar-thumb {
+      background: var(--card-border);
+      border-radius: 3px;
+    }
+
+    .empty-state {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .plot-item {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .plot-item:hover {
+      border-color: var(--accent-blue);
+      background-color: #222a39;
+    }
+
+    .plot-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .plot-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .plot-coords {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .btn-delete {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .btn-delete:hover {
+      color: var(--accent-red);
+      background-color: rgba(239, 68, 68, 0.1);
+    }
+
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>YTPMV Mix Style Matrix</h1>
+    <div class="sub-info">空間演出（ドライ↔ウェット） × 素材加工（素材の味↔シンセ化）</div>
+  </header>
+
+  <div class="main-container">
+    <div class="canvas-section">
+      <div class="canvas-wrapper">
+        <canvas id="matrixCanvas" width="600" height="600"></canvas>
+      </div>
+      <div class="canvas-hint">Canvas上をクリックすると座標をスライダーに直接反映できます</div>
+    </div>
+
+    <div class="control-panel">
+      <div class="panel-card">
+        <h2>プロット編集</h2>
+        <div class="form-group">
+          <label for="author-name">作者名 / トラック名</label>
+          <input type="text" id="author-name" placeholder="例: 音MAD作者A" maxlength="30">
+        </div>
+
+        <div class="form-group">
+          <label for="x-slider">
+            X軸: 空間演出 (ドライ ↔ ウェット)
+            <span class="val-badge" id="x-val">0</span>
+          </label>
+          <input type="range" id="x-slider" min="-100" max="100" value="0">
+        </div>
+
+        <div class="form-group">
+          <label for="y-slider">
+            Y軸: 素材加工 (素材の味 ↔ シンセ化)
+            <span class="val-badge" id="y-val">0</span>
+          </label>
+          <input type="range" id="y-slider" min="-100" max="100" value="0">
+        </div>
+
+        <button type="button" class="btn" id="add-plot-btn">プロット追加 / 更新</button>
+      </div>
+
+      <div class="panel-card" style="flex: 1;">
+        <h2>プロット一覧 (<span id="plot-count">0</span>)</h2>
+        <div class="plot-list-wrapper" id="plot-list">
+          <div class="empty-state">プロットデータがありません</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    YTPMV Mix Style Matrix &copy; 2026
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // State Management
+      const STORAGE_KEY = 'ytpmv_mix_matrix_plots';
+      let plots = [];
+      let hoveredPlotId = null;
+
+      // DOM Elements
+      const canvas = document.getElementById('matrixCanvas');
+      const ctx = canvas.getContext('2d');
+      const authorInput = document.getElementById('author-name');
+      const xSlider = document.getElementById('x-slider');
+      const ySlider = document.getElementById('y-slider');
+      const xValBadge = document.getElementById('x-val');
+      const yValBadge = document.getElementById('y-val');
+      const addBtn = document.getElementById('add-plot-btn');
+      const plotListEl = document.getElementById('plot-list');
+      const plotCountEl = document.getElementById('plot-count');
+
+      // Load plots from LocalStorage
+      function loadPlots() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            plots = JSON.parse(raw);
+          }
+        } catch (e) {
+          console.error('Failed to load plots from localStorage:', e);
+          plots = [];
+        }
+      }
+
+      // Save plots to LocalStorage
+      function savePlots() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(plots));
+        } catch (e) {
+          console.error('Failed to save plots to localStorage:', e);
+        }
+      }
+
+      // Coordinate Mapping Functions
+      // Canvas: (0, 0) top-left, (600, 600) bottom-right
+      // Matrix: (-100, -100) bottom-left, (+100, +100) top-right, (0, 0) center (300, 300)
+      function matrixToCanvas(x, y) {
+        const cx = 300 + (x / 100) * 260; // 40px margin around matrix
+        const cy = 300 - (y / 100) * 260;
+        return { cx, cy };
+      }
+
+      function canvasToMatrix(cx, cy) {
+        let x = Math.round(((cx - 300) / 260) * 100);
+        let y = Math.round(((300 - cy) / 260) * 100);
+        x = Math.max(-100, Math.min(100, x));
+        y = Math.max(-100, Math.min(100, y));
+        return { x, y };
+      }
+
+      // Draw Matrix Canvas
+      function draw() {
+        const width = canvas.width;
+        const height = canvas.height;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Background
+        ctx.fillStyle = '#141820';
+        ctx.fillRect(0, 0, width, height);
+
+        // Quadrant Background Text
+        ctx.save();
+        ctx.font = '700 24px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ドライ × シンセ化', 170, 150);
+        ctx.fillText('ウェット × シンセ化', 430, 150);
+        ctx.fillText('ドライ × 素材の味', 170, 450);
+        ctx.fillText('ウェット × 素材の味', 430, 450);
+        ctx.restore();
+
+        // Grid Lines
+        ctx.lineWidth = 1;
+
+        // Sub Grid (every 25 units = 65px)
+        ctx.strokeStyle = '#1a2232';
+        for (let v = -75; v <= 75; v += 25) {
+          if (v === 0) continue;
+          const { cx } = matrixToCanvas(v, 0);
+          const { cy } = matrixToCanvas(0, v);
+          
+          ctx.beginPath();
+          ctx.moveTo(cx, 40);
+          ctx.lineTo(cx, 560);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(40, cy);
+          ctx.lineTo(560, cy);
+          ctx.stroke();
+        }
+
+        // Main Grid (every 50 units = 130px)
+        ctx.strokeStyle = '#253046';
+        for (let v = -50; v <= 50; v += 50) {
+          if (v === 0) continue;
+          const { cx } = matrixToCanvas(v, 0);
+          const { cy } = matrixToCanvas(0, v);
+
+          ctx.beginPath();
+          ctx.moveTo(cx, 40);
+          ctx.lineTo(cx, 560);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(40, cy);
+          ctx.lineTo(560, cy);
+          ctx.stroke();
+        }
+
+        // Outer Border
+        ctx.strokeStyle = '#2a344d';
+        ctx.strokeRect(40, 40, 520, 520);
+
+        // Center Crosshair Axes
+        ctx.strokeStyle = '#4b5b80';
+        ctx.lineWidth = 2;
+
+        // X Axis
+        ctx.beginPath();
+        ctx.moveTo(40, 300);
+        ctx.lineTo(560, 300);
+        ctx.stroke();
+
+        // Y Axis
+        ctx.beginPath();
+        ctx.moveTo(300, 40);
+        ctx.lineTo(300, 560);
+        ctx.stroke();
+
+        // Axis Titles & Endpoint Labels
+        ctx.save();
+        ctx.font = '600 12px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+
+        // X Axis Labels
+        ctx.textAlign = 'left';
+        ctx.fillText('← ドライ (-100)', 45, 318);
+        ctx.textAlign = 'right';
+        ctx.fillText('ウェット (+100) →', 555, 318);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText('【空間演出】', 510, 290);
+
+        // Y Axis Labels
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('シンセ化 (+100) ↑', 300, 30);
+        ctx.fillText('素材の味 (-100) ↓', 300, 580);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText('【素材加工】', 310, 55);
+
+        ctx.restore();
+
+        // Render Plotted Points
+        plots.forEach(plot => {
+          const { cx, cy } = matrixToCanvas(plot.x, plot.y);
+          const isHovered = (plot.id === hoveredPlotId);
+
+          ctx.save();
+
+          // Outer Glow if hovered
+          if (isHovered) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.35)';
+            ctx.fill();
+          }
+
+          // Dot
+          ctx.beginPath();
+          ctx.arc(cx, cy, isHovered ? 7 : 5, 0, Math.PI * 2);
+          ctx.fillStyle = isHovered ? '#60a5fa' : '#3b82f6';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Label Text
+          ctx.font = isHovered ? '600 12px sans-serif' : '500 11px sans-serif';
+          ctx.fillStyle = isHovered ? '#ffffff' : '#e2e8f0';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${plot.name} (${plot.x}, ${plot.y})`, cx, cy - 10);
+
+          ctx.restore();
+        });
+
+        // Render Current Slider Selection Preview Point
+        const currentX = parseInt(xSlider.value, 10);
+        const currentY = parseInt(ySlider.value, 10);
+        const { cx: prevCx, cy: prevCy } = matrixToCanvas(currentX, currentY);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(prevCx, prevCy, 8, 0, Math.PI * 2);
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(prevCx, prevCy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#06b6d4';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Update UI Controls & List
+      function renderList() {
+        plotCountEl.textContent = plots.length;
+
+        if (plots.length === 0) {
+          plotListEl.innerHTML = '<div class="empty-state">プロットデータがありません</div>';
+          return;
+        }
+
+        plotListEl.innerHTML = '';
+        plots.forEach(plot => {
+          const item = document.createElement('div');
+          item.className = 'plot-item';
+          item.dataset.id = plot.id;
+
+          item.innerHTML = `
+            <div class="plot-info">
+              <div class="plot-name">${escapeHtml(plot.name)}</div>
+              <div class="plot-coords">X: ${plot.x} / Y: ${plot.y}</div>
+            </div>
+            <button class="btn-delete" title="削除">削除</button>
+          `;
+
+          // Hover highlight
+          item.addEventListener('mouseenter', () => {
+            hoveredPlotId = plot.id;
+            draw();
+          });
+          item.addEventListener('mouseleave', () => {
+            hoveredPlotId = null;
+            draw();
+          });
+
+          // Click to load into sliders
+          item.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-delete')) return;
+            authorInput.value = plot.name;
+            xSlider.value = plot.x;
+            ySlider.value = plot.y;
+            updateSliderBadges();
+            draw();
+          });
+
+          // Delete action
+          const deleteBtn = item.querySelector('.btn-delete');
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deletePlot(plot.id);
+          });
+
+          plotListEl.appendChild(item);
+        });
+      }
+
+      function escapeHtml(str) {
+        return str.replace(/[&<>"']/g, function (m) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+          }[m];
+        });
+      }
+
+      function updateSliderBadges() {
+        xValBadge.textContent = xSlider.value;
+        yValBadge.textContent = ySlider.value;
+      }
+
+      // Add or Update Plot
+      function addOrUpdatePlot() {
+        const name = authorInput.value.trim();
+        if (!name) {
+          alert('作者名を入力してください');
+          authorInput.focus();
+          return;
+        }
+
+        const x = parseInt(xSlider.value, 10);
+        const y = parseInt(ySlider.value, 10);
+
+        // Same-name check (case-insensitive)
+        const existingIndex = plots.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+
+        if (existingIndex !== -1) {
+          plots[existingIndex].x = x;
+          plots[existingIndex].y = y;
+          plots[existingIndex].name = name; // Update casing if changed
+        } else {
+          plots.push({
+            id: Date.now().toString(),
+            name: name,
+            x: x,
+            y: y
+          });
+        }
+
+        savePlots();
+        renderList();
+        draw();
+      }
+
+      // Delete Plot
+      function deletePlot(id) {
+        plots = plots.filter(p => p.id !== id);
+        savePlots();
+        renderList();
+        draw();
+      }
+
+      // Event Listeners
+      xSlider.addEventListener('input', () => {
+        updateSliderBadges();
+        draw();
+      });
+
+      ySlider.addEventListener('input', () => {
+        updateSliderBadges();
+        draw();
+      });
+
+      addBtn.addEventListener('click', addOrUpdatePlot);
+
+      authorInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addOrUpdatePlot();
+        }
+      });
+
+      // Canvas Click direct coordinate picking
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+
+        const { x, y } = canvasToMatrix(cx, cy);
+
+        xSlider.value = x;
+        ySlider.value = y;
+        updateSliderBadges();
+        draw();
+      });
+
+      // Admin / Console Backup APIs (hidden from main GUI for safety)
+      window.exportData = function () {
+        const jsonStr = JSON.stringify(plots, null, 2);
+        console.log('--- YTPMV Matrix Backup JSON ---');
+        console.log(jsonStr);
+        return jsonStr;
+      };
+
+      window.importData = function (jsonInput) {
+        try {
+          const parsed = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
+          if (Array.isArray(parsed)) {
+            plots = parsed;
+            savePlots();
+            renderList();
+            draw();
+            console.log(`[成功] ${plots.length} 件のプロットデータを復元しました。`);
+            return true;
+          } else {
+            console.error('[エラー] 配列形式のJSONデータを指定してください。');
+            return false;
+          }
+        } catch (e) {
+          console.error('[エラー] JSONの解析に失敗しました:', e);
+          return false;
+        }
+      };
+
+      window.clearAllData = function () {
+        if (confirm('すべてのプロットデータを消去しますか？')) {
+          plots = [];
+          savePlots();
+          renderList();
+          draw();
+          console.log('[完了] 全プロットデータを消去しました。');
+        }
+      };
+
+      // Output Admin Console Info
+      console.log('%cYTPMV Mix Style Matrix', 'font-size: 14px; font-weight: bold; color: #3b82f6;');
+      console.log('管理者用バックアップ・復元コマンド:');
+      console.log('  window.exportData()       : 現在のデータをJSON文字列で取得');
+      console.log('  window.importData(json)   : JSON文字列またはオブジェクトでデータを復元');
+      console.log('  window.clearAllData()     : 全プロットデータを消去');
+
+      // Initialize
+      loadPlots();
+      updateSliderBadges();
+      renderList();
+      draw();
+
+    })();
+  </script>
+</body>
+</html>
