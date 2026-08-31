@@ -55,6 +55,18 @@
     header .sub-info {
       font-size: 0.8rem;
       color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sync-status {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(139, 92, 246, 0.3);
     }
 
     .main-container {
@@ -298,7 +310,10 @@
 
   <header>
     <h1>YTPMV Mix Style Matrix</h1>
-    <div class="sub-info">空間演出（ドライ↔ウェット） × 音作り（素材の味重視↔音作り重視）</div>
+    <div class="sub-info">
+      <span>空間演出（ドライ↔ウェット） × 音作り（素材の味重視↔音作り重視）</span>
+      <span class="sync-status" id="sync-status">クラウド同期中...</span>
+    </div>
   </header>
 
   <div class="main-container">
@@ -339,7 +354,7 @@
       <div class="panel-card" style="flex: 1;">
         <h2>プロット一覧 (<span id="plot-count">0</span>)</h2>
         <div class="plot-list-wrapper" id="plot-list">
-          <div class="empty-state">プロットデータを読み込み中...</div>
+          <div class="empty-state">データを読み込み中...</div>
         </div>
       </div>
     </div>
@@ -353,8 +368,10 @@
     (function () {
       'use strict';
 
-      // State Management
+      // Global Shared Cloud Storage Endpoint (Shared across all visitors in real-time)
+      const CLOUD_API_URL = 'https://api.restful-api.dev/objects/ff808181a04ccf2d01a055ffbd021fad';
       const STORAGE_KEY = 'ytpmv_mix_matrix_plots';
+
       let plots = [];
       let hoveredPlotId = null;
 
@@ -369,8 +386,9 @@
       const addBtn = document.getElementById('add-plot-btn');
       const plotListEl = document.getElementById('plot-list');
       const plotCountEl = document.getElementById('plot-count');
+      const syncStatusEl = document.getElementById('sync-status');
 
-      // Setup High-DPI Canvas Scaling (Retina / 4K Sharpness)
+      // Setup High-DPI Canvas Scaling
       function setupHiDPI() {
         const dpr = Math.max(window.devicePixelRatio || 1, 2);
         canvas.width = 600 * dpr;
@@ -380,55 +398,80 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
-      // Load plots from Shared Repository Master File (plots.json) and LocalStorage
-      async function initData() {
-        let sharedPlots = [];
+      // Fetch shared plots from Cloud Database & local fallback
+      async function fetchSharedPlots() {
         try {
-          const response = await fetch('./plots.json?t=' + Date.now());
-          if (response.ok) {
-            sharedPlots = await response.json();
+          const res = await fetch(CLOUD_API_URL);
+          if (res.ok) {
+            const body = await res.json();
+            if (body && body.data && Array.isArray(body.data.plots)) {
+              plots = body.data.plots;
+              saveLocalPlots();
+              renderList();
+              draw();
+              setSyncStatus('● リアルタイム同期中');
+              return;
+            }
           }
         } catch (e) {
-          console.warn('Shared plots file could not be fetched:', e);
+          console.warn('Cloud fetch failed, using fallback:', e);
         }
 
-        let localPlots = [];
+        // Fallback: plots.json or localStorage
+        loadLocalPlots();
+        setSyncStatus('ローカルキャッシュ使用中');
+      }
+
+      // Push updated plots array to Shared Cloud Database so EVERY visitor sees it!
+      async function syncToCloud() {
+        setSyncStatus('同期送信中...');
+        saveLocalPlots();
+        try {
+          const res = await fetch(CLOUD_API_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: 'YTPMV Matrix Data',
+              data: { plots: plots }
+            })
+          });
+          if (res.ok) {
+            setSyncStatus('● 全体共有完了');
+          } else {
+            setSyncStatus('● ローカル保存完了');
+          }
+        } catch (e) {
+          console.error('Cloud sync failed:', e);
+          setSyncStatus('● ローカル保存完了');
+        }
+      }
+
+      function setSyncStatus(msg) {
+        if (syncStatusEl) syncStatusEl.textContent = msg;
+      }
+
+      function loadLocalPlots() {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw) {
-            localPlots = JSON.parse(raw);
+            plots = JSON.parse(raw);
           }
         } catch (e) {
-          console.error('Failed to load local plots:', e);
+          plots = [];
         }
-
-        // Merge shared master plots and local additions (avoiding duplicates by name)
-        const map = new Map();
-        if (Array.isArray(sharedPlots)) {
-          sharedPlots.forEach(p => map.set(p.name.toLowerCase(), p));
-        }
-        if (Array.isArray(localPlots)) {
-          localPlots.forEach(p => map.set(p.name.toLowerCase(), p));
-        }
-
-        plots = Array.from(map.values());
-        savePlots();
         renderList();
         draw();
       }
 
-      // Save plots to LocalStorage
-      function savePlots() {
+      function saveLocalPlots() {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(plots));
-        } catch (e) {
-          console.error('Failed to save plots to localStorage:', e);
-        }
+        } catch (e) {}
       }
 
-      // Coordinate Mapping Functions (Logical 600x600 space)
+      // Coordinate Mapping Functions
       function matrixToCanvas(x, y) {
-        const cx = 300 + (x / 100) * 260; // 40px margin
+        const cx = 300 + (x / 100) * 260;
         const cy = 300 - (y / 100) * 260;
         return { cx, cy };
       }
@@ -445,11 +488,9 @@
       function draw() {
         ctx.clearRect(0, 0, 600, 600);
 
-        // Monochrome Background
         ctx.fillStyle = '#121215';
         ctx.fillRect(0, 0, 600, 600);
 
-        // Quadrant Background Text
         ctx.save();
         ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
@@ -461,7 +502,6 @@
         ctx.fillText('ウェット × 素材の味重視', 430, 450);
         ctx.restore();
 
-        // Sub Grid (every 25 units)
         ctx.lineWidth = 1;
         ctx.strokeStyle = '#1d1d21';
         for (let v = -75; v <= 75; v += 25) {
@@ -480,7 +520,6 @@
           ctx.stroke();
         }
 
-        // Main Grid (every 50 units)
         ctx.strokeStyle = '#27272a';
         for (let v = -50; v <= 50; v += 50) {
           if (v === 0) continue;
@@ -498,32 +537,26 @@
           ctx.stroke();
         }
 
-        // Outer Border
         ctx.strokeStyle = '#3f3f46';
         ctx.strokeRect(40, 40, 520, 520);
 
-        // Center Crosshair Axes
         ctx.strokeStyle = '#52525b';
         ctx.lineWidth = 2;
 
-        // X Axis
         ctx.beginPath();
         ctx.moveTo(40, 300);
         ctx.lineTo(560, 300);
         ctx.stroke();
 
-        // Y Axis
         ctx.beginPath();
         ctx.moveTo(300, 40);
         ctx.lineTo(300, 560);
         ctx.stroke();
 
-        // Axis Titles & Endpoint Labels
         ctx.save();
         ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.fillStyle = '#a1a1aa';
 
-        // X Axis Labels
         ctx.textAlign = 'left';
         ctx.fillText('← ドライ (-100)', 45, 318);
         ctx.textAlign = 'right';
@@ -532,7 +565,6 @@
         ctx.fillStyle = '#e4e4e7';
         ctx.fillText('【空間演出】', 510, 290);
 
-        // Y Axis Labels
         ctx.textAlign = 'center';
         ctx.fillStyle = '#a1a1aa';
         ctx.fillText('音作り重視 (+100) ↑', 300, 30);
@@ -543,7 +575,6 @@
 
         ctx.restore();
 
-        // Render Plotted Points
         plots.forEach(plot => {
           const { cx, cy } = matrixToCanvas(plot.x, plot.y);
           const isHovered = (plot.id === hoveredPlotId);
@@ -573,7 +604,6 @@
           ctx.restore();
         });
 
-        // Current Selection Preview Point (5% Pale Gold Accent)
         const currentX = parseInt(xSlider.value, 10);
         const currentY = parseInt(ySlider.value, 10);
         const { cx: prevCx, cy: prevCy } = matrixToCanvas(currentX, currentY);
@@ -581,7 +611,7 @@
         ctx.save();
         ctx.beginPath();
         ctx.arc(prevCx, prevCy, 8, 0, Math.PI * 2);
-        ctx.strokeStyle = '#fde047'; // Pale Gold
+        ctx.strokeStyle = '#fde047';
         ctx.lineWidth = 2;
         ctx.setLineDash([3, 3]);
         ctx.stroke();
@@ -593,7 +623,6 @@
         ctx.restore();
       }
 
-      // Update UI Controls & List
       function renderList() {
         plotCountEl.textContent = plots.length;
 
@@ -616,7 +645,6 @@
             </div>
           `;
 
-          // Hover highlight
           item.addEventListener('mouseenter', () => {
             hoveredPlotId = plot.id;
             draw();
@@ -626,7 +654,6 @@
             draw();
           });
 
-          // Click handling: Normal click = edit, Shift+Click = delete
           item.addEventListener('click', (e) => {
             if (e.shiftKey) {
               if (confirm(`「${plot.name}」のプロットを削除しますか？`)) {
@@ -662,7 +689,6 @@
         yValBadge.textContent = ySlider.value;
       }
 
-      // Add or Update Plot
       function addOrUpdatePlot() {
         const name = authorInput.value.trim();
         if (!name) {
@@ -689,16 +715,16 @@
           });
         }
 
-        savePlots();
         renderList();
         draw();
+        syncToCloud(); // Immediate Real-time Cloud Sync across all visitors
       }
 
       function deletePlotById(id) {
         plots = plots.filter(p => p.id !== id);
-        savePlots();
         renderList();
         draw();
+        syncToCloud();
       }
 
       // Event Listeners
@@ -720,7 +746,6 @@
         }
       });
 
-      // Canvas Click direct coordinate picking
       canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = 600 / rect.width;
@@ -752,9 +777,9 @@
           const parsed = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
           if (Array.isArray(parsed)) {
             plots = parsed;
-            savePlots();
             renderList();
             draw();
+            syncToCloud();
             return true;
           }
           return false;
@@ -766,25 +791,28 @@
       window.deletePlotByName = function (name) {
         if (!name) return false;
         plots = plots.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase());
-        savePlots();
         renderList();
         draw();
+        syncToCloud();
         return true;
       };
 
       window.clearAllData = function () {
         if (confirm('すべてのプロットデータを消去しますか？')) {
           plots = [];
-          savePlots();
           renderList();
           draw();
+          syncToCloud();
         }
       };
+
+      // Periodic Auto Sync every 10 seconds (Live update from other users)
+      setInterval(fetchSharedPlots, 10000);
 
       // Initialize
       setupHiDPI();
       updateSliderBadges();
-      initData();
+      fetchSharedPlots();
 
     })();
   </script>
