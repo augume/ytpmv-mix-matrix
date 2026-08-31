@@ -259,6 +259,7 @@
       justify-content: space-between;
       transition: border-color 0.15s ease, background-color 0.15s ease;
       cursor: pointer;
+      user-select: none;
     }
 
     .plot-item:hover {
@@ -562,7 +563,7 @@
         ctx.restore();
       }
 
-      // Update UI Controls & List (GUI deletion removed for public protection)
+      // Update UI Controls & List
       function renderList() {
         plotCountEl.textContent = plots.length;
 
@@ -576,6 +577,7 @@
           const item = document.createElement('div');
           item.className = 'plot-item';
           item.dataset.id = plot.id;
+          item.title = 'クリックで編集 / Shift+クリックで削除';
 
           item.innerHTML = `
             <div class="plot-info">
@@ -594,8 +596,14 @@
             draw();
           });
 
-          // Click to load into sliders for updating
-          item.addEventListener('click', () => {
+          // Click handling: Normal click = edit, Shift+Click = delete (Hidden Admin Shortcut)
+          item.addEventListener('click', (e) => {
+            if (e.shiftKey) {
+              if (confirm(`「${plot.name}」のプロットを削除しますか？`)) {
+                deletePlotById(plot.id);
+              }
+              return;
+            }
             authorInput.value = plot.name;
             xSlider.value = plot.x;
             ySlider.value = plot.y;
@@ -656,6 +664,13 @@
         draw();
       }
 
+      function deletePlotById(id) {
+        plots = plots.filter(p => p.id !== id);
+        savePlots();
+        renderList();
+        draw();
+      }
+
       // Event Listeners
       xSlider.addEventListener('input', () => {
         updateSliderBadges();
@@ -689,7 +704,7 @@
         draw();
       });
 
-      // Admin / Console APIs (Console-only deletion & backup/restore)
+      // Admin / Console APIs
       window.exportData = function () {
         return JSON.stringify(plots, null, 2);
       };
